@@ -4,38 +4,58 @@ from PIL import Image, ImageTk
 import cv2
 import os
 
-# Initialize the camera
-cap = cv2.VideoCapture(0)
+# Global variable for camera object
+cap = None
 
-# Function to process image
-def process_image(image):
-    print("Processing image...")
+# Function to start live camera feed
+def take_photo():
+    global cap
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        print("Error: Unable to open the camera.")
+        return
 
-# Function to capture and save the image
-def capture_image():
-    global frame
-    if frame is not None:
-        cv2.imwrite("captured_image.jpg", frame)
-        img = Image.open("captured_image.jpg")
-        resize_and_display_image(img)
-        process_image(frame)
+    # Show the live camera feed
+    show_frame()
+
+    # Enable the "Capture" button after starting the camera
+    btn_capture.config(state=tk.NORMAL)
 
 # Function to show live camera feed
 def show_frame():
-    global frame
+    global cap
     ret, frame = cap.read()
     if ret:
         # Convert frame to RGB (OpenCV uses BGR by default)
         cv2image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         img = Image.fromarray(cv2image)
         img = ImageTk.PhotoImage(image=img)
-        
+
         # Update the label with the live image
         label_img.config(image=img)
         label_img.image = img
-        
-    # Call show_frame again after 10 milliseconds
-    root.after(10, show_frame)
+
+    # Call show_frame again after 10 milliseconds to keep the feed running
+    if cap is not None and cap.isOpened():
+        root.after(10, show_frame)
+
+# Function to capture and save the image, then close the camera
+def capture_image():
+    global cap
+    ret, frame = cap.read()
+    if ret:
+        # Save the captured image
+        cv2.imwrite("captured_image.jpg", frame)
+        img = Image.open("captured_image.jpg")
+        resize_and_display_image(img)
+        print("Photo captured and saved.")
+    else:
+        print("Error: Unable to capture image.")
+
+    # Release the camera and close the feed
+    cap.release()
+    cap = None
+    btn_capture.config(state=tk.DISABLED)
 
 # Open file dialog to insert image or video
 def insert_file():
@@ -45,7 +65,6 @@ def insert_file():
         if ext in [".jpg", ".jpeg", ".png"]:
             img = Image.open(file_path)
             resize_and_display_image(img)
-            process_image(img)
         elif ext == ".mp4":
             print("Video file selected")
 
@@ -73,21 +92,19 @@ root.state('normal')  # Default normal state
 root.geometry(f"{root.winfo_screenwidth()}x{root.winfo_screenheight()}")  # Maximize the window
 
 # Create buttons
-btn_capture = tk.Button(root, text="Capture Image", command=capture_image)
-btn_capture.pack(pady=10, fill=tk.BOTH, expand=True)
+btn_take_photo = tk.Button(root, text="Take Photo", command=take_photo)
+btn_take_photo.pack(pady=10, fill=tk.BOTH, expand=True)
 
 btn_insert = tk.Button(root, text="Insert Image/Video", command=insert_file)
 btn_insert.pack(pady=10, fill=tk.BOTH, expand=True)
+
+# "Capture" button is initially disabled until the camera starts
+btn_capture = tk.Button(root, text="Capture", command=capture_image, state=tk.DISABLED)
+btn_capture.pack(pady=10, fill=tk.BOTH, expand=True)
 
 # Label to show live camera feed or image
 label_img = Label(root)
 label_img.pack(pady=10, fill=tk.BOTH, expand=True)
 
-# Start showing live camera feed
-show_frame()
-
 # Run application
 root.mainloop()
-
-# Release the camera when the window is closed
-cap.release()
