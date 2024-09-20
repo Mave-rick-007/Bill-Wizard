@@ -1,5 +1,7 @@
 import re
 
+
+
 def totalAmount(text):
 
     pattern = r"(?i)(total|amount)[^\d]*(\d+[\.,]?\d*)"
