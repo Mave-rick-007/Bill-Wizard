@@ -1,11 +1,32 @@
 import tkinter as tk
-from tkinter import filedialog, Label
+from tkinter import filedialog, Label, Text, Scrollbar, RIGHT, Y
 from PIL import Image, ImageTk
 import cv2
 import os
+import csv
+import io
 
 # Global variable for camera object
 cap = None
+
+# Mock AI function that processes the image and returns CSV data
+def read_function(image):
+    # This function simulates processing the image and returning CSV data
+    # For this demo, we're generating mock data
+    data = [
+        ["ID", "Name", "Age", "Score"],
+        [1, "John Doe", 28, 90],
+        [2, "Jane Smith", 32, 85],
+        [3, "Alice Johnson", 24, 92]
+    ]
+
+    # Save the data to a CSV format in-memory (mocked result)
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerows(data)
+    output.seek(0)
+    
+    return output.getvalue()
 
 # Function to start live camera feed
 def take_photo():
@@ -49,6 +70,10 @@ def capture_image():
         img = Image.open("captured_image.jpg")
         resize_and_display_image(img)
         print("Photo captured and saved.")
+        
+        # Call the read_function function and display the CSV result
+        csv_data = read_function(frame)
+        display_csv_data(csv_data)
     else:
         print("Error: Unable to capture image.")
 
@@ -81,6 +106,13 @@ def resize_and_display_image(img):
     label_img.config(image=img)
     label_img.image = img
 
+# Function to display CSV data in the text area
+def display_csv_data(csv_data):
+    # Clear previous content
+    text_csv.delete('1.0', tk.END)
+    # Insert new CSV content
+    text_csv.insert(tk.END, csv_data)
+
 # Create main window
 root = tk.Tk()
 root.title("Bill-Wizard")
@@ -105,6 +137,17 @@ btn_capture.pack(pady=10, fill=tk.BOTH, expand=True)
 # Label to show live camera feed or image
 label_img = Label(root)
 label_img.pack(pady=10, fill=tk.BOTH, expand=True)
+
+# Add a scrollable Text widget to display CSV data
+frame_csv = tk.Frame(root)
+frame_csv.pack(fill=tk.BOTH, expand=True)
+
+scrollbar = Scrollbar(frame_csv)
+scrollbar.pack(side=RIGHT, fill=Y)
+
+text_csv = Text(frame_csv, wrap=tk.NONE, yscrollcommand=scrollbar.set)
+text_csv.pack(fill=tk.BOTH, expand=True)
+scrollbar.config(command=text_csv.yview)
 
 # Run application
 root.mainloop()
