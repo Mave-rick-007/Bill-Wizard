@@ -53,7 +53,12 @@ def update_theme():
 def take_photo():
     global cap
     cap = cv2.VideoCapture(0)
-    # ans = liveDetection.LiveDetector()
+    # Show the live camera feed
+    show_frame()
+    
+    # Enable the "Capture" button after starting the camera
+    btn_capture.config(state=tk.NORMAL)
+
     detected_frame = liveDetection.LiveDetector()
     if detected_frame is not None:
         csv_buffer = io.StringIO()
@@ -65,11 +70,7 @@ def take_photo():
         print("Error: Unable to open the camera.")
         return
 
-    # Show the live camera feed
-    show_frame()
 
-    # Enable the "Capture" button after starting the camera
-    btn_capture.config(state=tk.NORMAL)
 
 # Function to show live camera feed
 def show_frame():
