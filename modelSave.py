@@ -4,94 +4,99 @@ from ultralytics import YOLO
 from isInvoice import isInvoice
 
 
-# Load your custom YOLO model
-model = YOLO('D:\\billDetection\\Detection-Model\\Detection-Model\\weights\\yolo-v10s.pt')
 
-# Create directory to save captured images if it doesn't exist
+# Load your custom YOLO model
+model = YOLO('weights/yolo-v10s.pt')
+
+# Path to the directory containing the videos
+video_dir = 'demoVideos/'
+video_files = [f for f in os.listdir(video_dir) if f.lower().endswith(('.mp4', '.avi', '.mov'))]
+# video_files = ['3.mp4']
+# Create the main output directory if it doesn't exist
 output_dir = 'captured_images'
 os.makedirs(output_dir, exist_ok=True)
 
-# Open webcam (use 0 for default camera)
-cap = cv2.VideoCapture('demoVideos/3.mp4')
+# Loop through each video in the directory
+for video_file in video_files:
+    video_path = os.path.join(video_dir, video_file)
+    
+    # Open the video file
+    cap = cv2.VideoCapture(video_path)
 
-# Check if the camera is opened successfully
-if not cap.isOpened():
-    print("Error: Could not open webcam.")
-    exit()
+    # Check if the video is opened successfully
+    if not cap.isOpened():
+        print(f"Error: Could not open video {video_file}")
+        continue
 
-image_captured = False  # Flag to ensure only one image is captured per object type
-image_counter = 0       # Counter for unique image filenames
+    # Create a sub-directory for the current video to save images
+    video_output_dir = os.path.join(output_dir, os.path.splitext(video_file)[0])
+    os.makedirs(video_output_dir, exist_ok=True)
 
-while True:
-    # Capture frame-by-frame
-    ret, frame = cap.read()
-    if not ret:
-        print("Failed to grab frame")
-        break
+    # Dictionary to store the highest resolution for each object (by class name) for this video
+    object_resolutions = {}
 
-    # Perform YOLO object detection
-    results = model(frame)
+    print(f"Processing video: {video_file}")
 
-    # Loop through detected objects (results contains boxes, confidences, class IDs, etc.)
-    for result in results:
-        # result.boxes contains bounding box information
-        boxes = result.boxes
-        for box in boxes:
-            # Extract bounding box coordinates
-            x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
+    while True:
+        # Capture frame-by-frame
+        ret, frame = cap.read()
+        if not ret:
+            print(f"Finished processing video: {video_file}")
+            break
 
-            # Extract confidence score and class label
-            confidence = box.conf[0].item()
-            class_id = box.cls[0].item()
+        # Perform YOLO object detection
+        results = model(frame)
 
-            # Get the class name from the model's class names
-            class_name = model.names[int(class_id)]
+        # Loop through detected objects (results contains boxes, confidences, class IDs, etc.)
+        for result in results:
+            boxes = result.boxes
+            for box in boxes:
+                # Extract bounding box coordinates
+                x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
 
-            # Check if the detected object is 'paper' or 'book'
-            if (class_name == "paper" or class_name == "book") and confidence > 0.5:
-                # Draw green bounding box if it's a "paper" or "book"
-                box_color = (0, 255, 0)  # Green
-                cv2.rectangle(frame, (x1, y1), (x2, y2), box_color, 2)
+                # Extract confidence score and class label
+                confidence = box.conf[0].item()
+                class_id = box.cls[0].item()
 
-                # Display label and confidence on the frame
-                label_text = f"{class_name} {confidence:.2f}"
-                cv2.putText(frame, label_text, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
+                # Get the class name from the model's class names
+                class_name = model.names[int(class_id)]
 
-                # Ensure a high-resolution image by checking bounding box size
-                box_width = x2 - x1
-                box_height = y2 - y1
-                min_size_threshold = 100  # Set a reasonable size threshold for the object
+                # Check if the detected object is 'paper' or 'book'
+                if (class_name == "paper" or class_name == "book") and confidence > 0.5:
+                    # Calculate the bounding box area (width * height)
+                    box_width = x2 - x1
+                    box_height = y2 - y1
+                    box_area = box_width * box_height
 
-                if box_width > min_size_threshold and box_height > min_size_threshold and not image_captured:
-                    # Capture and save the bounded region
-                    cropped_image = frame[y1:y2, x1:x2]  # Crop the region inside the bounding box
+                    # Check if this is a new detection or if the resolution is higher than the previous one
+                    if (class_name not in object_resolutions) or (box_area > object_resolutions[class_name]):
+                        # Update the stored resolution for this object in the current video
+                        object_resolutions[class_name] = box_area
 
-                    # Create a unique filename and save the image in the directory
-                    image_filename = f'{class_name}_{image_counter}.png'
-                    image_path = os.path.join(output_dir, image_filename)
+                        # Draw green bounding box for the object
+                        box_color = (0, 255, 0)  # Green
+                        cv2.rectangle(frame, (x1, y1), (x2, y2), box_color, 2)
 
-                    if(isInvoice(image_path)):
-                        print("Invoice detected")
+                        # Display label and confidence on the frame
+                        label_text = f"{class_name} {confidence:.2f}"
+                        cv2.putText(frame, label_text, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
 
+                        # Capture and save the bounded region
+                        cropped_image = frame[y1:y2, x1:x2]  # Crop the region inside the bounding box
 
-                    cv2.imwrite(image_path, cropped_image)
-                    print(f"Saved {class_name} as {image_filename} in {output_dir}")
-                    image_counter += 1
+                        # Use the class name and video name to save the image, overwrite if a higher resolution is found
+                        image_filename = f'{class_name}_{video_file}.png'
+                        image_path = os.path.join(video_output_dir, image_filename)
 
-                    # Set the flag to prevent saving multiple copies
-                    image_captured = True
+                        isInvoice(image_path)
 
-    # Reset the flag if the object is no longer in the frame
-    if len(results) == 0 or (all(box.cls[0].item() != class_id for box in boxes) and image_captured):
-        image_captured = False
+                        cv2.imwrite(image_path, cropped_image)
+                        print(f"Saved/Overwritten {class_name} image for {video_file} in {video_output_dir}")
 
-    # Display the resulting frame
-    cv2.imshow('YOLO Inovice Detection', frame)
+        # Press 'q' to exit the current video early
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
 
-    # Press 'q' to exit the webcam window
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+    cap.release()
 
-# Release the webcam and close all windows
-cap.release()
 cv2.destroyAllWindows()
