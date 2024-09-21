@@ -7,18 +7,22 @@ from classifier.prediction import pred
 
 
 pattern = r"(?i)(invoice|bill)"
-item_pattern = r'(\d+)\.(\D)|(\D+)\s*\d+x\d+=([\d.]+)'
+# item_pattern = r'(\d+)\.(\D)|(\D+)\s*\d+x\d+=([\d.]+)'
+item_pattern = r'(\D+)\s*\d+x\d+=([\d.]+)'
+
+enhancer = r'(\d+)(\d{2})'
 
 
 
 
 
 # Initialize PaddleOCR (specify language)
-ocr = PaddleOCR(use_angle_cls=True, lang='en')  # For English language
+ocr = PaddleOCR(use_angle_cls=True, lang='en', det= True , det_db_thresh=0.3, det_db_box_thresh=0.5)  # For English language
 
 from PIL import Image
 
 strings_set = set()
+amount = 0
 
 def isInvoice(image_path):
 
@@ -36,6 +40,9 @@ def isInvoice(image_path):
 
 
     
+
+
+    
     matches = re.findall(pattern, extracted_text)
     if matches:
         print("invoice detected")
@@ -49,7 +56,7 @@ def isInvoice(image_path):
  
 
     # Find all matches in the text
-    matches = re.findall(products, extracted_text)
+    # matches = re.findall(products, extracted_text)
 
     # Initialize a list to collect items and prices
     data = []
@@ -57,21 +64,23 @@ def isInvoice(image_path):
 
     products = r'(\d+)\.([A-Za-z\s]+)|(\D+)\s*\d+x\d+=([\d.]+)'
 
+    
+
     # Find all matches in the text
-    matches = re.findall(products, extracted_text)
+    matches = re.findall(item_pattern, extracted_text)
 
     # Process and print results
-    for match in matches:
-        if match[0] and match[1]:  # For the first regex (\d+)\.([A-Za-z\s]+)
-            print(f"\n\n0: {match[0]} x 1: {match[1]}")
-            data.append((match[0], match[1]))
-        elif match[2] and match[3]:  # For the second regex (\D+)\s*\d+x\d+=([\d.]+)
-            print(f"\n\n2: {match[2]} x 3: {match[3]}")
-            data.append((match[2], match[3]))
+    # for match in matches:
+    #     if match[0] and match[1]:  # For the first regex (\d+)\.([A-Za-z\s]+)
+    #         print(f"\n\n0: {match[0]} x 1: {match[1]}")
+    #         data.append((match[0], match[1]))
+    #     elif match[2] and match[3]:  # For the second regex (\D+)\s*\d+x\d+=([\d.]+)
+    #         print(f"\n\n2: {match[2]} x 3: {match[3]}")
+    #         data.append((match[2], match[3]))
 
 
     # Create a DataFrame from the collected data
-    df = pd.DataFrame(data, columns=['Title', 'Price'])
+    df = pd.DataFrame(matches, columns=['Title', 'Price'])
 
     print(df)
 
@@ -84,7 +93,3 @@ def isInvoice(image_path):
 
 
         
-
-
-# isInvoice('D:\\billDetection\\demoPhotos\\invoice12.jpg')
-
