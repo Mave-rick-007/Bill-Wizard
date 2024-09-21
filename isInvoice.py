@@ -6,7 +6,7 @@ import pandas as pd
 from classifier.prediction import pred 
 
 
-pattern = r"(?i)(invoice|bill)"
+pattern = r"(?i)(invoice|bill|receipt)"
 # item_pattern = r'(\d+)\.(\D)|(\D+)\s*\d+x\d+=([\d.]+)'
 item_pattern = r'(\D+)\s*\d+x\d+=([\d.]+)'
 
@@ -85,7 +85,9 @@ def isInvoice(image_path):
     print(df)
 
     try:
-        print(pred(df))
+        categorised = pred(df)
+        print(categorised)
+        return categorised
     except:
         print("error in detection")
     
@@ -93,3 +95,7 @@ def isInvoice(image_path):
 
 
         
+
+
+# isInvoice('D:\\billDetection\\demoPhotos\\invoice12.jpg')
+

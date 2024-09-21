@@ -1,0 +1,84 @@
+import cv2
+import os
+from ultralytics import YOLO
+from isInvoice import isInvoice
+
+
+
+# Load your custom YOLO model
+model = YOLO('weights/yolo-v10s.pt')
+
+# Path to the directory containing the videos
+# Create the main output directory if it doesn't exist
+output_dir = 'captured_images'
+os.makedirs(output_dir, exist_ok=True)
+
+# Open the video file
+cap = cv2.VideoCapture(0)
+
+# Dictionary to store the highest resolution for each object (by class name) for this video
+object_resolutions = {}
+
+while True:
+    # Capture frame-by-frame
+    ret, frame = cap.read()
+    if not ret:
+        print(f"Finished processing video")
+        break
+
+    # Perform YOLO object detection
+    results = model(frame)
+
+    # Loop through detected objects (results contains boxes, confidences, class IDs, etc.)
+    for result in results:
+        boxes = result.boxes
+        for box in boxes:
+            # Extract bounding box coordinates
+            x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
+
+            # Extract confidence score and class label
+            confidence = box.conf[0].item()
+            class_id = box.cls[0].item()
+
+            # Get the class name from the model's class names
+            class_name = model.names[int(class_id)]
+
+            # Check if the detected object is 'paper' or 'book'
+            if (class_name == "paper" or class_name == "book") and confidence > 0.5:
+                # Calculate the bounding box area (width * height)
+                box_width = x2 - x1
+                box_height = y2 - y1
+                box_area = box_width * box_height
+
+                # Check if this is a new detection or if the resolution is higher than the previous one
+                if (class_name not in object_resolutions) or (box_area > object_resolutions[class_name]):
+                    # Update the stored resolution for this object in the current video
+                    object_resolutions[class_name] = box_area
+
+                    # Draw green bounding box for the object
+                    box_color = (0, 255, 0)  # Green
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), box_color, 2)
+
+                    # Display label and confidence on the frame
+                    label_text = f"{class_name} {confidence:.2f}"
+                    cv2.putText(frame, label_text, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
+
+                    # Capture and save the bounded region
+                    cropped_image = frame[y1:y2, x1:x2]  # Crop the region inside the bounding box
+
+                    # Use the class name and video name to save the image, overwrite if a higher resolution is found
+                    image_filename = f'{class_name}_.png'
+                    image_path = os.path.join('captured_images', image_filename)
+
+
+                    cv2.imwrite(image_path, cropped_image)
+                    isInvoice(image_path)
+                    print(f"Saved/Overwritten {class_name} image")
+
+    # Press 'q' to exit the current video early
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
+
+cv2.destroyAllWindows()
