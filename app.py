@@ -6,6 +6,7 @@ import os
 import csv
 import io
 import vidDetection
+import liveDetection
 
 # Global variable for camera object
 cap = None
@@ -52,6 +53,14 @@ def update_theme():
 def take_photo():
     global cap
     cap = cv2.VideoCapture(0)
+    # ans = liveDetection.LiveDetector()
+    detected_frame = liveDetection.LiveDetector()
+    if detected_frame is not None:
+        csv_buffer = io.StringIO()
+        detected_frame.to_csv(csv_buffer)
+        csv_string = csv_buffer.getvalue()
+        display_csv_data(csv_string)
+
     if not cap.isOpened():
         print("Error: Unable to open the camera.")
         return
@@ -144,14 +153,14 @@ root.state('normal')  # Default normal state
 root.geometry(f"{root.winfo_screenwidth()}x{root.winfo_screenheight()}")  # Maximize the window
 
 # Create buttons
-btn_take_photo = tk.Button(root, text="Take Photo", command=take_photo)
+btn_take_photo = tk.Button(root, text="Live Detection", command=take_photo)
 btn_take_photo.pack(pady=10, fill=tk.BOTH, expand=True)
 
 btn_insert = tk.Button(root, text="Insert Image/Video", command=insert_file)
 btn_insert.pack(pady=10, fill=tk.BOTH, expand=True)
 
 # "Capture" button is initially disabled until the camera starts
-btn_capture = tk.Button(root, text="Capture", command=capture_image, state=tk.DISABLED)
+btn_capture = tk.Button(root, text="Please show your bill", command=capture_image, state=tk.DISABLED)
 btn_capture.pack(pady=10, fill=tk.BOTH, expand=True)
 
 # Button to toggle light/dark mode
